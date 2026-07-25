@@ -10,9 +10,11 @@ const data = fs.readFileSync("todo.json", "utf8");
 const readTodo = () => {
   const data = fs.readFileSync("todo.json", "utf8");
   const result = JSON.parse(data);
-  console.log("Todos are:", result);
+
+  result.map((todoObj, index) => {
+    console.log(index + 1, ".", todoObj.title, ": ", todoObj.isDone);
+  });
 };
-// readTodo();
 
 //create
 const createTodo = (title, isDone) => {
@@ -35,44 +37,61 @@ const deleteTodo = (title) => {
   const data = fs.readFileSync("todo.json", "utf8");
   const todoArr = JSON.parse(data);
 
-  let deleteIndex = 0;
-  const filteredArr = todoArr.filter((todoDet, index) => {
-    if (todoDet.tittle.toLowerCase() == title.toLowerCase()) {
-      deleteIndex = index;
-      return false;
-    } else {
-      return true;
-    }
-  });
-  filteredArr.splice(deleteIndex, 0, filteredArr);
+  // Remove the todo whose title matches
+  const filteredArr = todoArr.filter(
+    (todo) => todo.title.toLowerCase() !== title.toLowerCase(),
+  );
 
-  fs.writeFileSync("todo.json", JSON.stringify(filteredArr), "utf8");
-  console.log(todoArr);
+  // Check if no todo was deleted
+  if (filteredArr.length === todoArr.length) {
+    console.log("Todo not found!");
+    return;
+  }
+
+  // Save the updated array back to the file
+  fs.writeFileSync("todo.json", JSON.stringify(filteredArr));
+
+  console.log("Todo deleted successfully!");
 };
 
-// update
-const updateTodo = (Old, New) => {};
+// update todo title
+const updateTodoTitle = (oldTitle, newTitle) => {
+  const data = fs.readFileSync("todo.json", "utf8");
+  const todoArr = JSON.parse(data);
 
-// //Done
-// const doneTodo = (todo_name) => {
-//   const data = fs.readFileSync("todo.json", "utf8");
-//   const todoArr = JSON.parse(data);
+  const updatedTitle = todoArr.map((todo) => {
+    if (todo.title.toLowerCase() == oldTitle.toLowerCase()) {
+      todo.title = newTitle;
+    }
+    return todo;
+  });
 
-//   const doneTodoList = todoArr.filter((todo) => {
-//     if (todo.toLowerCase() == todo_name.toLowerCase()) {
-//       return true;
-//     } else {
-//       return false;
-//     }
-//   });
+  fs.writeFileSync("todo.json", JSON.stringify(updatedTitle));
+  console.log(`title updated from ${oldTitle} to -----> ${newTitle}`);
+};
 
-//   console.log("Done todos:", doneTodoList);
-// };
+//update status of todo (true/false)
+const updateTodoStatus = (todoName, status) => {
+  const data = fs.readFileSync("todo.json", "utf8");
+  const todoArr = JSON.parse(data);
+
+  const updatedTodoArr = todoArr.map((todo) => {
+    if (todoName.toLowerCase() == todo.title.toLowerCase()) {
+      if (status == "true" || status == "True") {
+        status = true;
+      }
+      todo.isDone = status;
+    }
+    return todo;
+  });
+
+  fs.writeFileSync("todo.json", JSON.stringify(updatedTodoArr));
+};
 
 program
   .name("Todo CLI")
   .description("This CLI helps you to analyze the content in the file")
-  .version("1.0.0");
+  .version("2.0.0");
 
 program
   .command("print")
@@ -87,6 +106,11 @@ program
   .argument("<title>", "This argument is simply todo name")
   .argument("<isDone>", "This argument is sayes whether it is completed or not")
   .action((title, isDone) => {
+    if (isDone === "true" || isDone === "True") {
+      isDone = true;
+    } else {
+      isDone = false;
+    }
     createTodo(title, isDone);
   });
 
@@ -98,21 +122,22 @@ program
     deleteTodo(title);
   });
 
-// program
-//   .command("done")
-//   .description("This commmand check the todo as done")
-//   .argument("<todo_name>", "Argument to done that todo")
-//   .action((todo_name) => {
-//     doneTodo(todo_name);
-//   });
+program
+  .command("updateTodoTitle")
+  .description("This command updates the todo title")
+  .argument("<old_title>", "This is the previews value to be update")
+  .argument("<new_title>", "This is the value you wanted to update")
+  .action((old_title, new_title) => {
+    updateTodoTitle(old_title, new_title);
+  });
 
 program
-  .command("update")
-  .description("This command updates the todo")
-  .argument("<old_value>", "This is the previews value to be update")
-  .argument("<new_value>", "This is the value you wanted to update")
-  .action((old_value, new_value) => {
-    updateTodo(old_value, new_value);
+  .command("updateTodoStatus")
+  .description("This command updates the todo status")
+  .argument("<title>", "This is the todo's name")
+  .argument("<status>", "This is the status of that todo")
+  .action((title, status) => {
+    updateTodoStatus(title, status);
   });
 
 program.parse();
