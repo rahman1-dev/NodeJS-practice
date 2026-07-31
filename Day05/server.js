@@ -2,6 +2,15 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
+// [
+// {
+//     username: "ismail bhai",
+//     email: "ismailbhai@gmail.com",
+//     password: "i love biryani",
+//     token: "2dsfkjads;fijo9r"
+// }
+// ]
+
 const userDataBase = [];
 
 const generateToken = () => {
@@ -78,6 +87,27 @@ const generateToken = () => {
   return token;
 };
 
+function authmiddleware(req, res, next) {
+  const { token } = req.headers;
+
+  let foundUserObj = null;
+
+  foundUserObj = userDataBase.find((userObj) => {
+    if (userObj.token == token) {
+      return true;
+    }
+  });
+
+  if (foundUserObj == null) {
+    res.json({
+      msg: "invalid credentials",
+    });
+  } else {
+    req.foundUserName = foundUserObj.username;
+    next();
+  }
+}
+
 app.post("/signup", (req, res) => {
   const { username, email, password } = req.body;
 
@@ -109,6 +139,21 @@ app.post("/signin", (req, res) => {
   }
 
   res.json({ msg: "Signin successful" });
+});
+
+app.get("/me", authmiddleware, (req, res) => {
+  const foundUserName = req.foundUserName;
+
+  // db call to get user data using foundUserName
+  const userObjFromDB = userDataBase.find((userObj) => {
+    if (userObj.username === foundUserName) {
+      return true;
+    }
+  });
+
+  res.json({
+    data: userObjFromDB,
+  });
 });
 
 PORT = 8080;
