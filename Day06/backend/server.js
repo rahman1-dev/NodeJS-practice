@@ -15,20 +15,24 @@ const JWT_SECRET = "saleem loves biryani";
 // });
 
 function authMiddleware(req, res, next) {
-  const { token } = req.headers;
-  const payload = jwt.verify(token, JWT_SECRET);
+  try {
+    const { token } = req.headers;
 
-  if (token == null) {
-    res.json({ msg: "logedOut successfull" });
+    if (!token) {
+      res.json({ msg: "No token provided" });
+    }
+    const payload = jwt.verify(token, JWT_SECRET);
+
+    if (payload == null) {
+      res.json({ msg: "invalid credentials" });
+    }
+
+    req.transferData = payload;
+
+    next();
+  } catch (error) {
+    return res.status(401).json({ msg: "Invalide token" });
   }
-
-  if (payload == null) {
-    res.json({ msg: "invalid credentials" });
-  }
-
-  req.transferData = payload;
-
-  next();
 }
 
 app.post("/signup", (req, res) => {

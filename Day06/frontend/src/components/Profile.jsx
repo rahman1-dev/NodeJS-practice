@@ -48,7 +48,8 @@ const Profile = () => {
           <h2>{profileData.email}</h2>
         </div>
       ) : (
-        console.log("Loading.......")
+        // console.log("Login first")
+        <div>Login First to access profile</div>
       )}
     </div>
   );
