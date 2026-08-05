@@ -1,54 +1,77 @@
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
 const cors = require("cors");
 // const jwt = require("jsonwebtoken");
 
+const filePath = path.join(__dirname, "todo.json");
 let todoDb = [];
+const data = fs.readFileSync(filePath, "utf-8");
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 //Print todo request
 app.get("/todoPrint", (req, res) => {
-  res.json({ todoList: todoDb });
+  try {
+    const data = fs.readFileSync(filePath, "utf-8");
+    res.json({ todoList: JSON.parse(data) });
+  } catch (err) {
+    res.json({ msg: "There is no todo present" });
+  }
 });
 
 //Add todo request
 app.post("/todoAdd", (req, res) => {
+  const data = fs.readFileSync(filePath, "utf-8");
+  const todoArr = JSON.parse(data);
+
   const { title, status } = req.body;
 
   const todoObj = { title, status };
-  todoDb.push(todoObj);
 
-  res.json({ msg: "Todo added successfully", title, status });
+  todoArr.push(todoObj);
+
+  fs.writeFileSync(filePath, JSON.stringify(todoArr), "utf-8");
+
+  res.json({ msg: "Todo added successfully", data: todoArr });
 });
 
 //Delete todo request
 app.delete("/todoDelete", (req, res) => {
+  const data = fs.readFileSync(filePath, "utf-8");
+  let todoArr = JSON.parse(data);
+
   const { title } = req.body;
 
-  todoDb = todoDb.filter((todoObj) => {
-    if (todoObj.title == title) {
-      return false;
-    } else {
-      return true;
-    }
+  const newTodoArr = todoArr.filter((todoObj) => {
+    return todoObj.title !== title;
   });
 
-  res.json({ todoList: todoDb });
+  fs.writeFileSync(filePath, JSON.stringify(newTodoArr), "utf-8");
+
+  res.json({ todoList: newTodoArr });
 });
 
 //update todo title request
 app.post("/todoTitleUpd", (req, res) => {
+  const data = fs.readFileSync(filePath, "utf-8");
+  let todoArr = JSON.parse(data);
+
   const { oldTitle, newTitle } = req.body;
 
-  todoDb = todoDb.map((todoObj) => {
+  newTodoArr = todoArr.map((todoObj) => {
     if (todoObj.title == oldTitle) {
-      return { ...todoObj, title: newTitle };
+      todoObj.title = newTitle;
     }
     return todoObj;
   });
 
-  res.json({ msg: "todo title updated successfully", todoDb });
+  fs.writeFileSync(filePath, JSON.stringify(newTodoArr), "utf-8");
+  // console.log(todoDb);
+
+  res.json({ msg: "todo title updated successfully", newTodoArr });
 });
 
 //update todo status request
