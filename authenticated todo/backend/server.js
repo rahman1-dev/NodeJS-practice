@@ -2,18 +2,17 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
-// const jwt = require("jsonwebtoken");
 
 const filePath = path.join(__dirname, "todo.json");
 let todoDb = [];
-const data = fs.readFileSync(filePath, "utf-8");
+// const data = fs.readFileSync(filePath, "utf-8");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
 //Print todo request
-app.get("/todoPrint", (req, res) => {
+app.get("/print", (req, res) => {
   try {
     const data = fs.readFileSync(filePath, "utf-8");
     res.json({ todoList: JSON.parse(data) });
@@ -23,70 +22,74 @@ app.get("/todoPrint", (req, res) => {
 });
 
 //Add todo request
-app.post("/todoAdd", (req, res) => {
+app.post("/add", (req, res) => {
+  const data = fs.readFileSync(filePath, "utf-8");
+  const todoArr = JSON.parse(data);
+  // console.log(todoArr);
+  const { title, status } = req.body;
+  const todo = {
+    title,
+    status,
+  };
+  todoArr.push(todo);
+  fs.writeFileSync(filePath, JSON.stringify(todoArr), "utf-8");
+  res.json({ msg: "todo added successfully", todoList: todoArr });
+});
+
+//Delete todo request
+app.delete("/delete", (req, res) => {
+  const data = fs.readFileSync(filePath, "utf-8");
+  const todoArr = JSON.parse(data);
+  const { title } = req.body;
+
+  const newTodoArr = todoArr.filter((todo) => {
+    if (todo.title.toLowerCase() == title.toLowerCase()) {
+      return false;
+    }
+    return todo;
+  });
+
+  console.log("After deletion:", newTodoArr);
+
+  fs.writeFileSync(filePath, JSON.stringify(newTodoArr), "utf-8");
+
+  res.json({ msg: "todo delted", todoList: newTodoArr });
+});
+
+//update todo title request
+app.post("/updTitle", (req, res) => {
+  const data = fs.readFileSync(filePath, "utf-8");
+  const todoArr = JSON.parse(data);
+
+  const { oldTitle, newTitle } = req.body;
+
+  const newTodoArr = todoArr.map((todo) => {
+    if (todo.title.toLowerCase() == oldTitle.toLowerCase()) {
+      todo.title = newTitle;
+    }
+    return todo;
+  });
+
+  fs.writeFileSync(filePath, JSON.stringify(newTodoArr), "utf-8");
+  res.json({ msg: "Title updated succesfully", todoList: newTodoArr });
+});
+
+//update todo status request
+app.post("/updStatus", (req, res) => {
   const data = fs.readFileSync(filePath, "utf-8");
   const todoArr = JSON.parse(data);
 
   const { title, status } = req.body;
 
-  const todoObj = { title, status };
-
-  todoArr.push(todoObj);
-
-  fs.writeFileSync(filePath, JSON.stringify(todoArr), "utf-8");
-
-  res.json({ msg: "Todo added successfully", data: todoArr });
-});
-
-//Delete todo request
-app.delete("/todoDelete", (req, res) => {
-  const data = fs.readFileSync(filePath, "utf-8");
-  let todoArr = JSON.parse(data);
-
-  const { title } = req.body;
-
-  const newTodoArr = todoArr.filter((todoObj) => {
-    return todoObj.title !== title;
+  newTodoArr = todoArr.map((todo) => {
+    if (todo.title.toLowerCase() == title.toLowerCase()) {
+      todo.status = status;
+    }
+    return todo;
   });
 
   fs.writeFileSync(filePath, JSON.stringify(newTodoArr), "utf-8");
-
-  res.json({ todoList: newTodoArr });
-});
-
-//update todo title request
-app.post("/todoTitleUpd", (req, res) => {
-  const data = fs.readFileSync(filePath, "utf-8");
-  let todoArr = JSON.parse(data);
-
-  const { oldTitle, newTitle } = req.body;
-
-  newTodoArr = todoArr.map((todoObj) => {
-    if (todoObj.title == oldTitle) {
-      todoObj.title = newTitle;
-    }
-    return todoObj;
-  });
-
-  fs.writeFileSync(filePath, JSON.stringify(newTodoArr), "utf-8");
-  // console.log(todoDb);
-
-  res.json({ msg: "todo title updated successfully", newTodoArr });
-});
-
-//update todo status request
-app.post("/todoStatusUpd", (req, res) => {
-  const { title, status } = req.body;
-
-  todoDb = todoDb.map((todoObj) => {
-    if (todoObj.title == title) {
-      //   todoObj.status = status;
-      return { ...todoObj, status: status };
-    }
-    return todoObj;
-  });
-
-  res.json({ msg: "todo status updated successfully", todoList: todoDb });
+  res.json({ msg: "status updated successfully", todoList: newTodoArr });
 });
 
 app.listen("8080", () => {
