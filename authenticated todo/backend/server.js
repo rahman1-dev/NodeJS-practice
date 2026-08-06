@@ -1,97 +1,128 @@
 const express = require("express");
-const fs = require("fs");
+const fs = require("fs").promises;
 const path = require("path");
 const cors = require("cors");
 
 const filePath = path.join(__dirname, "todo.json");
-let todoDb = [];
-// const data = fs.readFileSync(filePath, "utf-8");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-//Print todo request
-app.get("/print", (req, res) => {
+async function readDb() {
   try {
-    const data = fs.readFileSync(filePath, "utf-8");
-    res.json({ todoList: JSON.parse(data) });
+    const data = await fs.readFile(filePath, "utf-8");
+    const todoArr = JSON.parse(data || "[]");
+    let changed = false;
+    const normalized = todoArr.map((todo) => {
+      if (!todo.id) {
+        changed = true;
+        return {
+          ...todo,
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        };
+      }
+      return todo;
+    });
+    if (changed) {
+      await writeDb(normalized);
+    }
+    return normalized;
   } catch (err) {
-    res.json({ msg: "There is no todo present" });
+    return [];
+  }
+}
+
+async function writeDb(todoArr) {
+  await fs.writeFile(filePath, JSON.stringify(todoArr, null, 2), "utf-8");
+}
+
+//Print todo request
+app.get("/print", async (req, res) => {
+  try {
+    const todoArr = await readDb();
+    res.json({ todoList: todoArr });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to read todos" });
   }
 });
 
 //Add todo request
-app.post("/add", (req, res) => {
-  const data = fs.readFileSync(filePath, "utf-8");
-  const todoArr = JSON.parse(data);
-  // console.log(todoArr);
-  const { title, status } = req.body;
-  const todo = {
-    title,
-    status,
-  };
-  todoArr.push(todo);
-  fs.writeFileSync(filePath, JSON.stringify(todoArr), "utf-8");
-  res.json({ msg: "todo added successfully", todoList: todoArr });
+app.post("/add", async (req, res) => {
+  try {
+    const todoArr = await readDb();
+    const { title, status } = req.body;
+    if (!title || !title.toString().trim()) {
+      return res.status(400).json({ error: "Title is required" });
+    }
+    const todo = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      title: title.toString().trim(),
+      status: Boolean(status),
+    };
+    todoArr.push(todo);
+    await writeDb(todoArr);
+    res.status(201).json({ msg: "todo added successfully", todoList: todoArr });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to add todo" });
+  }
 });
 
 //Delete todo request
-app.delete("/delete", (req, res) => {
-  const data = fs.readFileSync(filePath, "utf-8");
-  const todoArr = JSON.parse(data);
-  const { title } = req.body;
-
-  const newTodoArr = todoArr.filter((todo) => {
-    if (todo.title.toLowerCase() == title.toLowerCase()) {
-      return false;
-    }
-    return todo;
-  });
-
-  console.log("After deletion:", newTodoArr);
-
-  fs.writeFileSync(filePath, JSON.stringify(newTodoArr), "utf-8");
-
-  res.json({ msg: "todo delted", todoList: newTodoArr });
+app.delete("/delete/:id", async (req, res) => {
+  try {
+    const todoArr = await readDb();
+    const id = req.params.id;
+    const newTodoArr = todoArr.filter((todo) => todo.id !== id);
+    await writeDb(newTodoArr);
+    res.json({ msg: "todo deleted", todoList: newTodoArr });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete todo" });
+  }
 });
 
 //update todo title request
-app.post("/updTitle", (req, res) => {
-  const data = fs.readFileSync(filePath, "utf-8");
-  const todoArr = JSON.parse(data);
-
-  const { oldTitle, newTitle } = req.body;
-
-  const newTodoArr = todoArr.map((todo) => {
-    if (todo.title.toLowerCase() == oldTitle.toLowerCase()) {
-      todo.title = newTitle;
+app.patch("/updTitle/:id", async (req, res) => {
+  try {
+    const todoArr = await readDb();
+    const { id } = req.params;
+    const { newTitle } = req.body;
+    if (!newTitle || !newTitle.toString().trim()) {
+      return res.status(400).json({ error: "newTitle is required" });
     }
-    return todo;
-  });
-
-  fs.writeFileSync(filePath, JSON.stringify(newTodoArr), "utf-8");
-  res.json({ msg: "Title updated succesfully", todoList: newTodoArr });
+    const newTodoArr = todoArr.map((todo) => {
+      if (todo.id === id) {
+        return { ...todo, title: newTitle.toString().trim() };
+      }
+      return todo;
+    });
+    await writeDb(newTodoArr);
+    res.json({ msg: "Title updated successfully", todoList: newTodoArr });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update title" });
+  }
 });
 
 //update todo status request
-app.post("/updStatus", (req, res) => {
-  const data = fs.readFileSync(filePath, "utf-8");
-  const todoArr = JSON.parse(data);
-
-  const { title, status } = req.body;
-
-  newTodoArr = todoArr.map((todo) => {
-    if (todo.title.toLowerCase() == title.toLowerCase()) {
-      todo.status = status;
-    }
-    return todo;
-  });
-
-  fs.writeFileSync(filePath, JSON.stringify(newTodoArr), "utf-8");
-  res.json({ msg: "status updated successfully", todoList: newTodoArr });
+app.patch("/updStatus/:id", async (req, res) => {
+  try {
+    const todoArr = await readDb();
+    const { id } = req.params;
+    const { status } = req.body;
+    const newTodoArr = todoArr.map((todo) => {
+      if (todo.id === id) {
+        return { ...todo, status: Boolean(status) };
+      }
+      return todo;
+    });
+    await writeDb(newTodoArr);
+    res.json({ msg: "Status updated successfully", todoList: newTodoArr });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update status" });
+  }
 });
 
-app.listen("8080", () => {
-  console.log("Server is listening at port 8080");
+const PORT = 8080;
+app.listen(PORT, () => {
+  console.log(`Server is listening at port ${PORT}`);
 });
